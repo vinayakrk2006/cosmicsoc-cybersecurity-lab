@@ -1,0 +1,6 @@
+{
+  "name": "CosmicSOC Cybersecurity Learning Lab",
+  "description": "Interactive cybersecurity learning sandbox with real-time cyber attack simulations, password security analyzer, phishing email triage, ethical hacking CTF labs, and AI-driven personalized feedback.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
