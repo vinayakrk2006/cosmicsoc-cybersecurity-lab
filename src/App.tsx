@@ -11,8 +11,10 @@ import { XssLab } from './components/XssLab';
 import { PortScannerLab } from './components/PortScannerLab';
 import { CryptoLab } from './components/CryptoLab';
 import { LearningPaths } from './components/LearningPaths';
+import { Leaderboard } from './components/Leaderboard';
 import { AiMentor } from './components/AiMentor';
 import { BadgesAndCert } from './components/BadgesAndCert';
+import { CommandPalette } from './components/CommandPalette';
 import { sound } from './utils/audio';
 
 const STORAGE_KEY = 'cosmicsoc_progress_v1';
@@ -39,6 +41,7 @@ const INITIAL_PROGRESS: UserProgress = {
 export default function App() {
   const [currentSection, setCurrentSection] = useState<NavSection>('dashboard');
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
+  const [isSearchOpen, setIsSearchOpen] = useState<boolean>(false);
 
   // Load progress from localStorage or use initial baseline
   const [progress, setProgress] = useState<UserProgress>(() => {
@@ -61,6 +64,18 @@ export default function App() {
       // Fallback
     }
   }, [progress]);
+
+  // Global keyboard shortcut for ⌘K search
+  useEffect(() => {
+    const handleGlobalKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsSearchOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKey);
+    return () => window.removeEventListener('keydown', handleGlobalKey);
+  }, []);
 
   // Earn XP handler
   const handleEarnXp = (amount: number) => {
@@ -146,7 +161,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#080d14] text-slate-100 flex flex-col font-sans selection:bg-cyan-500/20 selection:text-cyan-300">
-      {/* Top Bar Contract Header */}
+      {/* CodeMaster Student Platform Header */}
       <Header
         progress={progress}
         onReset={handleResetProgress}
@@ -154,25 +169,32 @@ export default function App() {
         soundEnabled={soundEnabled}
         onToggleSound={handleToggleSound}
         onNavigateToCert={() => setCurrentSection('certificates')}
+        onNavigateToLeaderboard={() => setCurrentSection('leaderboard')}
+        onOpenSearch={() => setIsSearchOpen(true)}
       />
 
-      {/* Main Workspace with Sidebar */}
+      {/* Main Workspace with CodeMaster Sidebar */}
       <div className="flex-1 flex overflow-hidden">
         {/* Navigation Sidebar */}
         <Sidebar
           currentSection={currentSection}
           onSelectSection={setCurrentSection}
           activeAttackCount={2}
+          lessonsMasteredCount={progress.lessonsMastered}
         />
 
         {/* Content Viewport */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-[#090f18]/50">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-[#090f18]/60">
           {currentSection === 'dashboard' && (
             <Dashboard
               progress={progress}
               onNavigate={setCurrentSection}
               activeAttackCount={2}
             />
+          )}
+
+          {currentSection === 'leaderboard' && (
+            <Leaderboard currentUserXp={progress.xp} />
           )}
 
           {currentSection === 'war-room' && (
@@ -221,6 +243,13 @@ export default function App() {
           )}
         </main>
       </div>
+
+      {/* CodeMaster ⌘K Quick Search Command Palette */}
+      <CommandPalette
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
+        onSelect={(sec) => setCurrentSection(sec)}
+      />
     </div>
   );
 }

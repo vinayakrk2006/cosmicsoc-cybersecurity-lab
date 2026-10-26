@@ -747,3 +747,106 @@ export const BADGES_LIST: Badge[] = [
     unlockedAtXp: 800,
   },
 ];
+
+export interface LeaderboardUser {
+  rank: number;
+  name: string;
+  handle: string;
+  xp: number;
+  level: number;
+  tierTitle: string;
+  badgesCount: number;
+  accuracy: number;
+  streak: number;
+  avatarColor: string;
+  isCurrentUser?: boolean;
+}
+
+export const LEADERBOARD_USERS: LeaderboardUser[] = [
+  {
+    rank: 1,
+    name: 'Elena Rostova',
+    handle: '@zeroday_elena',
+    xp: 1420,
+    level: 8,
+    tierTitle: 'Principal Threat Hunter',
+    badgesCount: 12,
+    accuracy: 96,
+    streak: 18,
+    avatarColor: 'from-amber-400 to-orange-500',
+  },
+  {
+    rank: 2,
+    name: 'Marcus Chen',
+    handle: '@mchen_redteam',
+    xp: 1180,
+    level: 6,
+    tierTitle: 'Red Team Operator',
+    badgesCount: 9,
+    accuracy: 92,
+    streak: 12,
+    avatarColor: 'from-cyan-400 to-blue-500',
+  },
+  {
+    rank: 3,
+    name: 'Aisha Al-Mansoor',
+    handle: '@aisha_soc_ops',
+    xp: 990,
+    level: 5,
+    tierTitle: 'Senior SOC Analyst',
+    badgesCount: 8,
+    accuracy: 91,
+    streak: 9,
+    avatarColor: 'from-purple-400 to-pink-500',
+  },
+  {
+    rank: 4,
+    name: 'Vinayak K Putti',
+    handle: '@vinayak_cosmicsoc',
+    xp: 820,
+    level: 5,
+    tierTitle: 'SOC Tier 2 Analyst',
+    badgesCount: 4,
+    accuracy: 89,
+    streak: 7,
+    avatarColor: 'from-emerald-400 to-teal-500',
+    isCurrentUser: true,
+  },
+  {
+    rank: 5,
+    name: 'Liam Gallagher',
+    handle: '@liam_g_sec',
+    xp: 760,
+    level: 4,
+    tierTitle: 'Security Engineer',
+    badgesCount: 5,
+    accuracy: 86,
+    streak: 5,
+    avatarColor: 'from-rose-400 to-red-500',
+  },
+  {
+    rank: 6,
+    name: 'Sophia Patel',
+    handle: '@sophia_p_net',
+    xp: 690,
+    level: 4,
+    tierTitle: 'Network Defender',
+    badgesCount: 4,
+    accuracy: 85,
+    streak: 6,
+    avatarColor: 'from-indigo-400 to-violet-500',
+  },
+  {
+    rank: 7,
+    name: 'Tariq Johnson',
+    handle: '@tariq_appsec',
+    xp: 540,
+    level: 3,
+    tierTitle: 'AppSec Apprentice',
+    badgesCount: 3,
+    accuracy: 82,
+    streak: 4,
+    avatarColor: 'from-teal-400 to-cyan-500',
+  },
+];
+

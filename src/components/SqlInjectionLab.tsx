@@ -10,7 +10,12 @@ import {
   Code2,
   Lock,
   Unlock,
-  CheckCircle,
+  CheckCircle2,
+  HelpCircle,
+  FileCode,
+  CheckSquare,
+  Square,
+  AlertCircle,
 } from 'lucide-react';
 import { sound } from '../utils/audio';
 
@@ -38,32 +43,38 @@ export const SqlInjectionLab: React.FC<SqlInjectionLabProps> = ({ onEarnXp }) =>
   const [isSecureMode, setIsSecureMode] = useState<boolean>(false);
   const [queryResults, setQueryResults] = useState<UserRecord[] | null>(null);
   const [executionMessage, setExecutionMessage] = useState<string>('');
+  const [showHint, setShowHint] = useState<boolean>(false);
+  const [activeTab, setActiveTab] = useState<'editor' | 'ast' | 'database'>('editor');
   const [hasSolved, setHasSolved] = useState<boolean>(false);
 
+  // Objectives tracking in CodeMaster challenge style
+  const [obj1Met, setObj1Met] = useState<boolean>(true); // Explored parameter
+  const [obj2Met, setObj2Met] = useState<boolean>(false); // Bypassed auth
+  const [obj3Met, setObj3Met] = useState<boolean>(false); // Tested Prepared Statement
+
   const rawQuery = isSecureMode
-    ? `SELECT id, username, role, secret FROM users WHERE username = ? AND password = ?;\n-- Parameters: [${JSON.stringify(usernameInput)}, ${JSON.stringify(passwordInput)}]`
+    ? `-- Prepared Statement Template\nPREPARE login_stmt FROM 'SELECT id, username, role, secret FROM users WHERE username = ? AND password = ?';\nEXECUTE login_stmt USING ${JSON.stringify(usernameInput)}, ${JSON.stringify(passwordInput)};`
     : `SELECT id, username, role, secret FROM users WHERE username = '${usernameInput}' AND password = '${passwordInput}';`;
 
   const handleExecuteQuery = () => {
     sound.playClick();
 
     if (isSecureMode) {
-      // Prepared Statement logic: only matches exact match
+      setObj3Met(true);
       const matched = MOCK_DATABASE.filter(
         (u) => u.username === usernameInput && passwordInput === 'admin123'
       );
       setQueryResults(matched);
       if (matched.length > 0) {
         sound.playSuccess();
-        setExecutionMessage('Query executed via Prepared Statement. 1 exact record matched.');
+        setExecutionMessage('Prepared Statement safely executed with exact match. 1 row retrieved.');
       } else {
         sound.playAlert();
         setExecutionMessage(
-          'Prepared Statement safely evaluated your input as a literal string. Zero records matched. Attack neutralized!'
+          'Prepared Statement bound parameters as literals. Zero rows matched. Injection thwarted!'
         );
       }
     } else {
-      // Vulnerable string concatenation logic
       const lower = usernameInput.toLowerCase();
       const isBypass =
         lower.includes("' or '1'='1") ||
@@ -73,9 +84,10 @@ export const SqlInjectionLab: React.FC<SqlInjectionLabProps> = ({ onEarnXp }) =>
 
       if (isBypass) {
         sound.playSuccess();
+        setObj2Met(true);
         setQueryResults(MOCK_DATABASE);
         setExecutionMessage(
-          'AUTHENTICATION BYPASS SUCCESSFUL: The injected tautology negated the password check. Full database records extracted!'
+          'SUCCESS: Authentication bypassed! Tautology evaluated to TRUE. All sensitive rows retrieved!'
         );
         if (!hasSolved) {
           setHasSolved(true);
@@ -84,7 +96,7 @@ export const SqlInjectionLab: React.FC<SqlInjectionLabProps> = ({ onEarnXp }) =>
       } else if (usernameInput === 'admin' && passwordInput === 'admin123') {
         sound.playSuccess();
         setQueryResults([MOCK_DATABASE[0]]);
-        setExecutionMessage('Standard legitimate user login successful.');
+        setExecutionMessage('Valid credential login successful.');
       } else {
         sound.playAlert();
         setQueryResults([]);
@@ -99,217 +111,290 @@ export const SqlInjectionLab: React.FC<SqlInjectionLabProps> = ({ onEarnXp }) =>
   };
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
-      {/* Title block */}
+    <div className="space-y-5 max-w-6xl mx-auto">
+      {/* CodeMaster Challenge Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#1b2b40]">
         <div>
           <div className="flex items-center gap-2">
-            <Database className="w-6 h-6 text-emerald-400" />
-            <h1 className="text-2xl font-bold tracking-tight text-white">
-              SQL Injection & Database Privilege Sandbox
-            </h1>
-          </div>
-          <p className="text-xs text-slate-400 mt-1">
-            Simulate dynamic query string concatenation vs parameterized prepared statements against a live in-memory database.
-          </p>
-        </div>
-
-        {/* Toggle Mode: Vulnerable vs Parameterized */}
-        <div className="flex items-center gap-2 bg-[#0a1019] p-1 rounded-lg border border-[#1e2f47]">
-          <button
-            onClick={() => {
-              sound.playClick();
-              setIsSecureMode(false);
-              setQueryResults(null);
-            }}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
-              !isSecureMode
-                ? 'bg-rose-950/80 text-rose-300 border border-rose-700/60 shadow-sm'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            Vulnerable Concatenation
-          </button>
-          <button
-            onClick={() => {
-              sound.playClick();
-              setIsSecureMode(true);
-              setQueryResults(null);
-            }}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
-              isSecureMode
-                ? 'bg-emerald-950/80 text-emerald-300 border border-emerald-700/60 shadow-sm'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            Secure Prepared Statement
-          </button>
-        </div>
-      </div>
-
-      {/* Target Web Form & Payload Selector */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Form Input */}
-        <div className="bg-[#0e1724] border border-[#1b2b40] rounded-xl p-5 space-y-4">
-          <div className="flex items-center justify-between pb-2 border-b border-[#182638]">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300">
-              Vulnerable Portal Login Form
-            </h3>
-            <span
-              className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold ${
-                isSecureMode
-                  ? 'bg-emerald-950 text-emerald-300 border border-emerald-800'
-                  : 'bg-rose-950 text-rose-300 border border-rose-800'
-              }`}
-            >
-              {isSecureMode ? '🛡️ PROTECTED WITH PDO' : '⚠️ VULNERABLE STRING CONCAT'}
+            <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-md bg-emerald-950 text-emerald-300 border border-emerald-800 font-bold">
+              CHALLENGE #03
+            </span>
+            <span className="text-xs text-slate-400 font-mono">
+              Web AppSec · OWASP Top 10 A03
             </span>
           </div>
+          <h1 className="text-2xl font-bold tracking-tight text-white mt-1">
+            SQL Injection Authentication Bypass & Prepared Statements
+          </h1>
+        </div>
 
-          <div className="space-y-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">
-                Username / Email Input
-              </label>
-              <input
-                type="text"
-                value={usernameInput}
-                onChange={(e) => setUsernameInput(e.target.value)}
-                className="w-full bg-[#080d14] border border-[#1e2f47] focus:border-cyan-500 rounded-lg px-3 py-2 text-xs font-mono text-cyan-300 focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">
-                Password Input
-              </label>
-              <input
-                type="text"
-                value={passwordInput}
-                onChange={(e) => setPasswordInput(e.target.value)}
-                className="w-full bg-[#080d14] border border-[#1e2f47] focus:border-cyan-500 rounded-lg px-3 py-2 text-xs font-mono text-slate-300 focus:outline-none"
-              />
-            </div>
-
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-mono font-bold text-amber-400 bg-amber-500/10 border border-amber-500/30 px-3 py-1.5 rounded-xl">
+            +150 XP Bounty
+          </span>
+          {/* Mode Switcher */}
+          <div className="flex items-center gap-1 bg-[#0a1019] p-1 rounded-xl border border-[#1e2f47] text-xs">
             <button
-              onClick={handleExecuteQuery}
-              className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold text-xs rounded-lg transition-colors shadow-sm"
+              onClick={() => {
+                sound.playClick();
+                setIsSecureMode(false);
+                setQueryResults(null);
+              }}
+              className={`px-3 py-1.5 rounded-lg font-semibold transition-all ${
+                !isSecureMode
+                  ? 'bg-rose-950 text-rose-300 border border-rose-700/60 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
             >
-              <Play className="w-3.5 h-3.5" />
-              <span>Execute SQL Query</span>
+              Vulnerable Concatenation
+            </button>
+            <button
+              onClick={() => {
+                sound.playClick();
+                setIsSecureMode(true);
+                setQueryResults(null);
+              }}
+              className={`px-3 py-1.5 rounded-lg font-semibold transition-all ${
+                isSecureMode
+                  ? 'bg-emerald-950 text-emerald-300 border border-emerald-700/60 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Secure Prepared Statement
             </button>
           </div>
-
-          {/* Quick Payloads */}
-          <div className="pt-3 border-t border-[#182638]">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-2">
-              Common SQL Injection Payloads:
-            </span>
-            <div className="flex flex-wrap gap-1.5">
-              {[
-                "' OR '1'='1",
-                "' OR 1=1 --",
-                "admin' --",
-                "' UNION SELECT 1, 'hacked', 'ROOT', 'leak' --",
-              ].map((payload) => (
-                <button
-                  key={payload}
-                  onClick={() => handleApplyPayload(payload)}
-                  className="px-2 py-1 text-[11px] font-mono bg-[#080d14] hover:bg-[#142338] border border-[#1e2e45] text-cyan-300 rounded transition-colors"
-                >
-                  {payload}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Live Query Parser & AST Breakdown */}
-        <div className="bg-[#0e1724] border border-[#1b2b40] rounded-xl p-5 flex flex-col justify-between space-y-4">
-          <div>
-            <div className="flex items-center justify-between pb-2 mb-3 border-b border-[#182638]">
-              <div className="flex items-center gap-2 text-xs font-bold text-slate-300">
-                <Code2 className="w-4 h-4 text-cyan-400" />
-                <span>Live Query Parser Visualizer</span>
-              </div>
-              <span className="text-[10px] font-mono text-slate-400">SQL ENGINE</span>
-            </div>
-
-            <div className="bg-[#080d14] rounded-lg p-3 font-mono text-xs text-slate-200 border border-[#18263a] leading-relaxed overflow-x-auto">
-              <pre className="text-cyan-300 whitespace-pre-wrap">{rawQuery}</pre>
-            </div>
-
-            <div className="mt-3 text-xs text-slate-400 leading-relaxed space-y-2">
-              <p>
-                {isSecureMode ? (
-                  <span className="text-emerald-300">
-                    <strong>How Prepared Statements Defend:</strong> The SQL template is pre-compiled into a fixed binary parse tree on the database server. When parameter values arrive, they are treated strictly as data literals, rendering syntax injection impossible.
-                  </span>
-                ) : (
-                  <span className="text-rose-300">
-                    <strong>Vulnerability Mechanics:</strong> The attacker input contains a single quote (<code className="text-white">'</code>) that breaks out of the string boundary, transforming user input into an executable boolean condition (<code className="text-white">OR '1'='1'</code>).
-                  </span>
-                )}
-              </p>
-            </div>
-          </div>
-
-          {executionMessage && (
-            <div
-              className={`p-3 rounded-lg border text-xs font-mono ${
-                executionMessage.includes('SUCCESSFUL') || executionMessage.includes('1 exact')
-                  ? 'bg-emerald-950/40 border-emerald-800 text-emerald-200'
-                  : 'bg-rose-950/40 border-rose-800 text-rose-200'
-              }`}
-            >
-              {executionMessage}
-            </div>
-          )}
         </div>
       </div>
 
-      {/* Query Result Table */}
-      {queryResults && (
-        <div className="bg-[#0e1724] border border-[#1b2b40] rounded-xl p-5 space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300">
-              Database Returned Record Set ({queryResults.length} rows returned)
-            </h3>
-            {queryResults.length > 1 && (
-              <span className="text-[10px] font-mono bg-rose-950 text-rose-300 border border-rose-800 px-2 py-0.5 rounded font-bold">
-                DATA EXFILTRATION DETECTED
+      {/* CodeMaster Signature Split-Pane Challenge Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 min-h-[580px]">
+        {/* Left Pane: Challenge Briefing & Objectives (5 cols) */}
+        <div className="lg:col-span-5 bg-[#0e1724] border border-[#1b2b40] rounded-2xl p-5 flex flex-col justify-between space-y-4 shadow-sm">
+          <div className="space-y-4">
+            <div>
+              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                <FileCode className="w-4 h-4 text-cyan-400" />
+                <span>Mission Briefing</span>
+              </h2>
+              <p className="text-xs text-slate-300 mt-2 leading-relaxed">
+                The target enterprise authentication gateway constructs SQL queries dynamically using unescaped string concatenation:
+              </p>
+              <div className="p-2.5 rounded-lg bg-[#080d14] border border-[#182638] font-mono text-[11px] text-cyan-300 mt-2 break-all">
+                SELECT * FROM users WHERE user = '$user' AND pass = '$pass'
+              </div>
+            </div>
+
+            {/* Objectives Checklist (CodeMaster Style) */}
+            <div className="p-3.5 rounded-xl bg-[#080d14] border border-[#182638] space-y-2.5">
+              <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block">
+                Challenge Objectives:
               </span>
-            )}
+              <div className="space-y-2 text-xs">
+                <div className="flex items-start gap-2.5">
+                  <CheckSquare className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                  <span className="text-slate-300">
+                    Task 1: Identify injection entry point in the username parameter
+                  </span>
+                </div>
+                <div className="flex items-start gap-2.5">
+                  {obj2Met ? (
+                    <CheckSquare className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                  ) : (
+                    <Square className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
+                  )}
+                  <span className={obj2Met ? 'text-slate-200 line-through' : 'text-slate-300'}>
+                    Task 2: Inject a boolean tautology payload (<code className="text-amber-300 font-mono">' OR '1'='1</code>) to bypass password checks
+                  </span>
+                </div>
+                <div className="flex items-start gap-2.5">
+                  {obj3Met ? (
+                    <CheckSquare className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                  ) : (
+                    <Square className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
+                  )}
+                  <span className={obj3Met ? 'text-slate-200 line-through' : 'text-slate-300'}>
+                    Task 3: Switch to Prepared Statement mode to verify code-data separation
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Payloads Shelf */}
+            <div>
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wide block mb-1.5">
+                Quick Payload Injector:
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {["' OR '1'='1", "' OR 1=1 --", "admin' --", "' UNION SELECT 1, 'hacked', 'ROOT', 'leak' --"].map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => handleApplyPayload(p)}
+                    className="px-2 py-1 text-[11px] font-mono bg-[#080d14] hover:bg-[#142338] border border-[#1e2e45] text-cyan-300 rounded-lg transition-colors"
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="border-b border-[#1a283e] text-slate-400 font-mono">
-                  <th className="py-2 px-3">ID</th>
-                  <th className="py-2 px-3">Username</th>
-                  <th className="py-2 px-3">Role</th>
-                  <th className="py-2 px-3">Secret / Vault Key</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#152336] font-mono">
-                {queryResults.map((row) => (
-                  <tr key={row.id} className="hover:bg-[#121f30]">
-                    <td className="py-2 px-3 text-slate-400">{row.id}</td>
-                    <td className="py-2 px-3 text-white font-bold">{row.username}</td>
-                    <td className="py-2 px-3">
-                      <span className="px-1.5 py-0.5 rounded text-[10px] bg-[#142336] text-cyan-300">
-                        {row.role}
-                      </span>
-                    </td>
-                    <td className="py-2 px-3 text-amber-300">{row.secret}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          {/* Hint Accordion */}
+          <div className="pt-3 border-t border-[#182638]">
+            <button
+              onClick={() => setShowHint(!showHint)}
+              className="w-full flex items-center justify-between text-xs text-slate-400 hover:text-cyan-300 font-medium transition-colors"
+            >
+              <div className="flex items-center gap-1.5">
+                <HelpCircle className="w-3.5 h-3.5 text-amber-400" />
+                <span>{showHint ? 'Hide Guidance Hint' : 'Need a hint?'}</span>
+              </div>
+              <span className="text-[10px] font-mono">0 pts cost</span>
+            </button>
+            {showHint && (
+              <p className="mt-2 text-xs text-slate-400 leading-relaxed bg-[#080d14] p-3 rounded-lg border border-[#1a273b]">
+                In SQL, quotes (<code className="text-white">'</code>) demarcate string literals. By entering <code className="text-cyan-300">' OR '1'='1</code>, the parsed WHERE clause becomes <code className="text-white">WHERE username = '' OR '1'='1' AND password = '...'</code>. Because '1'='1' is true, the entire boolean clause evaluates to TRUE!
+              </p>
+            )}
           </div>
         </div>
-      )}
+
+        {/* Right Pane: CodeMaster IDE & Terminal Console (7 cols) */}
+        <div className="lg:col-span-7 flex flex-col justify-between space-y-4">
+          {/* Top: Editor & Input Viewport */}
+          <div className="bg-[#0e1724] border border-[#1b2b40] rounded-2xl overflow-hidden shadow-sm flex flex-col flex-1">
+            {/* Tab Bar */}
+            <div className="p-2 px-3 border-b border-[#182638] flex items-center justify-between bg-[#0a1018]">
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setActiveTab('editor')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-colors ${
+                    activeTab === 'editor'
+                      ? 'bg-[#142234] text-cyan-300 border border-cyan-800/40'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  login_form.html
+                </button>
+                <button
+                  onClick={() => setActiveTab('ast')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-colors ${
+                    activeTab === 'ast'
+                      ? 'bg-[#142234] text-cyan-300 border border-cyan-800/40'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  query_engine.sql
+                </button>
+              </div>
+
+              <span className="text-[10px] font-mono text-slate-500">
+                SQLITE VIRTUAL IN-MEMORY
+              </span>
+            </div>
+
+            {/* Tab Contents */}
+            <div className="p-4 flex-1 space-y-4">
+              {activeTab === 'editor' ? (
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      User Parameter (Input Field)
+                    </label>
+                    <input
+                      type="text"
+                      value={usernameInput}
+                      onChange={(e) => setUsernameInput(e.target.value)}
+                      className="w-full bg-[#080d14] border border-[#1e2f47] focus:border-cyan-500 rounded-xl px-3.5 py-2.5 text-xs font-mono text-cyan-300 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      Password Parameter
+                    </label>
+                    <input
+                      type="text"
+                      value={passwordInput}
+                      onChange={(e) => setPasswordInput(e.target.value)}
+                      className="w-full bg-[#080d14] border border-[#1e2f47] focus:border-cyan-500 rounded-xl px-3.5 py-2.5 text-xs font-mono text-slate-300 focus:outline-none"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-[#080d14] rounded-xl p-3 border border-[#182638] font-mono text-xs text-cyan-300 overflow-x-auto min-h-[120px]">
+                  <pre className="whitespace-pre-wrap">{rawQuery}</pre>
+                </div>
+              )}
+
+              {/* Action Bar */}
+              <div className="flex items-center justify-between pt-2">
+                <span className="text-xs text-slate-400 font-mono">
+                  Press <strong>Execute Query</strong> to test execution
+                </span>
+
+                <button
+                  onClick={handleExecuteQuery}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-extrabold text-xs rounded-xl transition-all shadow-md shadow-cyan-950/40"
+                >
+                  <Play className="w-3.5 h-3.5 text-slate-950" />
+                  <span>Execute Query</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom Pane: Test Execution Console & Output Results (CodeMaster Style) */}
+          <div className="bg-[#080d14] border border-[#1b2b40] rounded-2xl p-4 font-mono text-xs shadow-inner space-y-3">
+            <div className="flex items-center justify-between pb-2 border-b border-[#182638]">
+              <div className="flex items-center gap-2 text-slate-300">
+                <Terminal className="w-4 h-4 text-cyan-400" />
+                <span className="font-bold text-xs">TEST RESULTS CONSOLE</span>
+              </div>
+              <span className="text-[10px] text-slate-500">
+                STATUS: {queryResults ? 'COMPLETED' : 'IDLE'}
+              </span>
+            </div>
+
+            {executionMessage && (
+              <div
+                className={`p-2.5 rounded-xl border text-xs leading-relaxed ${
+                  executionMessage.includes('SUCCESS') || executionMessage.includes('safely')
+                    ? 'bg-emerald-950/40 border-emerald-800 text-emerald-200'
+                    : 'bg-rose-950/40 border-rose-800 text-rose-200'
+                }`}
+              >
+                {executionMessage}
+              </div>
+            )}
+
+            {/* Extracted Record Table */}
+            {queryResults && queryResults.length > 0 && (
+              <div className="overflow-x-auto pt-1">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-[#182638] text-slate-400 text-[10px]">
+                      <th className="py-1 px-2">ID</th>
+                      <th className="py-1 px-2">USERNAME</th>
+                      <th className="py-1 px-2">ROLE</th>
+                      <th className="py-1 px-2">VAULT KEY</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#131f2f]">
+                    {queryResults.map((r) => (
+                      <tr key={r.id}>
+                        <td className="py-1.5 px-2 text-slate-400">{r.id}</td>
+                        <td className="py-1.5 px-2 text-white font-bold">{r.username}</td>
+                        <td className="py-1.5 px-2 text-cyan-300">{r.role}</td>
+                        <td className="py-1.5 px-2 text-amber-300 font-bold">{r.secret}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

@@ -9,7 +9,8 @@ export type NavSection =
   | 'crypto-lab'
   | 'learning-paths'
   | 'ai-mentor'
-  | 'certificates';
+  | 'certificates'
+  | 'leaderboard';
 
 export interface UserProgress {
   xp: number;
